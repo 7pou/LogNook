@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-mono: "Cascadia Code", Consolas, "Microsoft YaHei", monospace;
+}
+
+@layer base {
+  body {
+    @apply m-0 bg-slate-50 font-sans text-sm text-slate-800;
+    color-scheme: light;
+  }
+
+  :focus-visible {
+    @apply outline-3 outline-offset-3 outline-blue-500;
+  }
+
+  summary {
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@layer components {
+  .button-primary {
+    @apply inline-flex h-10.5 cursor-pointer items-center justify-center rounded border border-blue-900 bg-blue-900 px-4 text-white hover:bg-blue-800;
+  }
+
+  .button-secondary {
+    @apply inline-flex h-10.5 cursor-pointer items-center justify-center rounded border border-slate-400 bg-white px-4 whitespace-nowrap text-blue-900 hover:bg-slate-100;
+  }
+
+  .button-danger {
+    @apply inline-flex h-10.5 cursor-pointer items-center justify-center rounded border border-red-300 bg-white px-4 whitespace-nowrap text-red-800 hover:bg-red-50;
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+}

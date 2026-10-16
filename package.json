@@ -1,0 +1,55 @@
+{
+  "name": "lognook",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "A generic local log writer and web viewer for Node.js.",
+  "author": "7pou.com@mail.com",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "homepage": "https://github.com/7pou/LogNook#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/7pou/LogNook.git"
+  },
+  "bugs": {
+    "url": "https://github.com/7pou/LogNook/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "scripts": {
+    "build": "pnpm run build:lib && pnpm run build:web",
+    "build:lib": "tsdown",
+    "build:web": "pnpm --filter @lognook/web build",
+    "dev": "tsdown --watch",
+    "dev:web": "pnpm --filter @lognook/web dev",
+    "dev:server": "pnpm run build:lib && node --watch examples/dev-server.mjs",
+    "test": "pnpm run test:lib && pnpm run test:web",
+    "test:lib": "vitest run",
+    "test:web": "pnpm --filter @lognook/web test",
+    "typecheck": "pnpm run typecheck:lib && pnpm run typecheck:web",
+    "typecheck:lib": "tsc --noEmit",
+    "typecheck:web": "pnpm --filter @lognook/web typecheck",
+    "test:types": "tsc --ignoreConfig --noEmit --strict --target es2023 --module nodenext --moduleResolution nodenext --types node tests/package-types.mts",
+    "release": "bumpp",
+    "prepublishOnly": "pnpm test && pnpm run typecheck && pnpm run build && pnpm run test:types"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "bumpp": "^11.1.0",
+    "tsdown": "^0.22.5",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}
