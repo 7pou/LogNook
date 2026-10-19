@@ -1,4 +1,5 @@
 import type { LogEntry as LogEntryData } from '../../../src/log-types'
+import { CopyMessageButton } from './CopyMessageButton'
 
 export function LogEntry({ entry, showTime = true }: { entry: LogEntryData; showTime?: boolean }) {
   const message = entry.kind === 'raw' ? entry.raw
@@ -13,7 +14,10 @@ export function LogEntry({ entry, showTime = true }: { entry: LogEntryData; show
           ? <time dateTime={entry.timestamp} className="text-xs text-slate-500">{new Date(entry.timestamp).toLocaleString()}</time>
           : <span className="text-xs text-slate-500">原始记录</span>)}
         <span className={`col-start-2 font-semibold wrap-anywhere ${showTime ? 'md:col-start-auto' : 'md:col-span-2'}`}>{entry.kind === 'structured' ? entry.title ?? '日志' : '无法解析的日志'}</span>
-        <span className="col-start-2 truncate text-slate-500 md:col-start-auto">{preview}</span>
+        <span className="col-start-2 flex min-w-0 items-center gap-2 text-slate-500 md:col-start-auto">
+          <span className="min-w-0 flex-1 truncate">{preview}</span>
+          <CopyMessageButton message={message} />
+        </span>
       </summary>
       <div className="border-t border-slate-200 px-5 py-4 md:pr-6 md:pb-5 md:pl-11">
         <pre className="font-mono text-[13px] leading-7 whitespace-pre-wrap wrap-anywhere">{message}</pre>
