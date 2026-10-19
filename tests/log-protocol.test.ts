@@ -10,6 +10,18 @@ test.each(['ready', 'reset', 'resync'])('decodes %s control', (type) => {
   expect(decodeLogEvent(type, '{"cursor":{"sessionId":"session","revision":0}}')).toEqual({ type, cursor: { sessionId: 'session', revision: 0 } })
 })
 
+test('preserves color when decoding an append event', () => {
+  const data = '{"cursor":{"sessionId":"session","revision":1},"entry":{"kind":"structured","timestamp":"2026-10-15T02:00:00Z","color":"#ef4444","message":"message"}}'
+  expect(decodeLogEvent('append', data)).toMatchObject({ type: 'append', entry: { color: '#ef4444', message: 'message' } })
+})
+
+test.each([123, null, {}, []])('rejects append events and snapshots with non-string color %j', (color) => {
+  const entry = { kind: 'structured', timestamp: '2026-10-15T02:00:00Z', color, message: 'message' }
+  const cursor = { sessionId: 'session', revision: 1 }
+  expect(() => decodeLogEvent('append', JSON.stringify({ cursor, entry }))).toThrow()
+  expect(isLogsSnapshot({ filename: 'app.log', query: '', total: 1, matched: 1, entries: [entry], cursor, clearToken: '1'.repeat(32) })).toBe(false)
+})
+
 test.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1])('rejects invalid revision %s', (revision) => {
   expect(() => decodeLogEvent('reset', JSON.stringify({ cursor: { sessionId: 'session', revision } }))).toThrow()
 })

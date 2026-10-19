@@ -6,8 +6,9 @@ function parseEntry(raw: string): LogEntry {
     const value: unknown = JSON.parse(raw)
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       const record = value as Record<string, unknown>
-      if (typeof record.timestamp === 'string' && Number.isFinite(Date.parse(record.timestamp)) && Object.hasOwn(record, 'message') && (record.title === undefined || typeof record.title === 'string')) {
-        return { kind: 'structured', timestamp: record.timestamp, title: record.title, message: record.message }
+      if (typeof record.timestamp === 'string' && Number.isFinite(Date.parse(record.timestamp)) && Object.hasOwn(record, 'message') && (record.title === undefined || typeof record.title === 'string')
+        && (record.color === undefined || typeof record.color === 'string')) {
+        return { kind: 'structured', timestamp: record.timestamp, title: record.title, color: record.color, message: record.message }
       }
     }
   } catch {}

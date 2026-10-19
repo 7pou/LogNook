@@ -9,7 +9,7 @@ export function LogEntry({ entry, showTime = true }: { entry: LogEntryData; show
   return (
     <details className="group border-t border-slate-200 first:border-t-0 open:bg-blue-50/40">
       <summary className="grid cursor-pointer grid-cols-[12px_minmax(0,1fr)] items-baseline gap-2 p-4 md:grid-cols-[16px_180px_minmax(80px,160px)_minmax(0,1fr)] md:gap-3">
-        <span aria-hidden="true" className="font-mono text-slate-500"><span className="group-open:hidden">+</span><span className="hidden group-open:inline">−</span></span>
+        <span aria-hidden="true" className="font-mono text-slate-500" style={entry.kind === 'structured' && entry.color ? { color: entry.color } : undefined}><span className="group-open:hidden">+</span><span className="hidden group-open:inline">−</span></span>
         {showTime && (entry.kind === 'structured'
           ? <time dateTime={entry.timestamp} className="text-xs text-slate-500">{new Date(entry.timestamp).toLocaleString()}</time>
           : <span className="text-xs text-slate-500">原始记录</span>)}

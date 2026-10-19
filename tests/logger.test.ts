@@ -29,6 +29,36 @@ test('writes ordered snapshots as JSON Lines', () => withTempDir(async (director
   expect(entries[1]).not.toHaveProperty('title')
 }))
 
+test('preserves color in the file, snapshots and append events', () => withTempDir(async (directory) => {
+  const logPath = join(directory, 'app.log')
+  const logger = new Logger(logPath)
+  const events: LogStreamEvent[] = []
+  const unsubscribe = await logger.subscribe((event) => events.push(event))
+  const input = { title: 'colored log', color: '#ef4444', message: 'message' }
+  await logger.log(input)
+  expect(JSON.parse((await readFile(logPath, 'utf8')).trim())).toMatchObject({ color: '#ef4444', message: 'message' })
+  expect(await logger.readSnapshot()).toMatchObject({ entries: [{ kind: 'structured', color: '#ef4444' }] })
+  expect(events.at(-1)).toMatchObject({ type: 'append', entry: { kind: 'structured', color: '#ef4444' } })
+  unsubscribe()
+}))
+
+test('omits color when it is not provided', () => withTempDir(async (directory) => {
+  const logPath = join(directory, 'app.log')
+  const logger = new Logger(logPath)
+  await logger.log('plain string')
+  await logger.log({ message: 'plain object' })
+  const entries = (await readFile(logPath, 'utf8')).trim().split('\n').map((line) => JSON.parse(line))
+  for (const entry of entries) expect(entry).not.toHaveProperty('color')
+}))
+
+test.each([123, null, {}, []])('rejects non-string color %j without writing', (color) => withTempDir(async (directory) => {
+  const logPath = join(directory, 'app.log')
+  const logger = new Logger(logPath)
+  await expect(logger.log({ color, message: 'message' } as unknown as LogInput)).rejects.toThrow(TypeError)
+  await expect(access(logPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  await expect(logger.log('valid message')).resolves.toBeUndefined()
+}))
+
 test.each([undefined, () => 1, Symbol('value'), NaN, Infinity, 1n, { toJSON: () => undefined }])('rejects unsupported message %s', (message) => withTempDir(async (directory) => {
   const logPath = join(directory, 'app.log')
   const logger = new Logger(logPath)

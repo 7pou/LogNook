@@ -21,6 +21,35 @@ test('formats structured detail, renders title as text and uses browser-local ti
 })
 
 test.each([
+  { color: '#ef4444', expected: 'rgb(239, 68, 68)' },
+  { color: 'red', expected: 'red' },
+  { color: 'rgb(239, 68, 68)', expected: 'rgb(239, 68, 68)' },
+])('applies $color only to the expand indicator and retains it when expanded', async ({ color, expected }) => {
+  const entry = { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', title: 'colored log', color, message: 'message' }
+  const { container } = render(<LogEntry entry={entry} />)
+  const summary = container.querySelector('summary')!
+  const indicator = summary.firstElementChild as HTMLElement
+  expect(indicator.style.color).toBe(expected)
+  expect(summary.style.color).toBe('')
+  expect((screen.getByText('colored log') as HTMLElement).style.color).toBe('')
+  expect((container.querySelector('pre') as HTMLElement).style.color).toBe('')
+  await userEvent.setup().click(summary)
+  expect(container.querySelector('details')!.open).toBe(true)
+  expect(indicator.style.color).toBe(expected)
+})
+
+test.each([
+  { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: 'plain message' },
+  { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', color: '', message: 'empty color' },
+  { kind: 'raw' as const, raw: 'raw message' },
+])('keeps the default indicator color without a custom color for $kind', (entry) => {
+  const { container } = render(<LogEntry entry={entry} />)
+  const indicator = container.querySelector('summary')!.firstElementChild as HTMLElement
+  expect(indicator.style.color).toBe('')
+  expect(indicator).toHaveClass('text-slate-500')
+})
+
+test.each([
   { kind: 'raw' as const, raw: '<img src=x onerror=bad()>\nsecond line' },
   { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: '<img src=x onerror=bad()>\nsecond line' },
 ])('preserves multiline text without HTML interpretation', (entry) => {

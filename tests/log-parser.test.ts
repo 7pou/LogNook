@@ -21,6 +21,16 @@ test.each(['{"timestamp":"2026-10-15T02:00:00Z"}', '{"timestamp":"2026-10-15T02:
   expect(parseLogs(raw).entries).toEqual([{ kind: 'raw', raw }])
 })
 
+test.each(['#ef4444', 'red', 'rgb(239, 68, 68)', ''])('preserves optional color %j in structured records', (color) => {
+  const raw = JSON.stringify({ timestamp: '2026-10-15T02:00:00Z', color, message: 'message' })
+  expect(parseLogs(raw).entries[0]).toMatchObject({ kind: 'structured', color, message: 'message' })
+})
+
+test.each([123, null, {}, []])('preserves records with invalid color %j as raw text', (color) => {
+  const raw = JSON.stringify({ timestamp: '2026-10-15T02:00:00Z', color, message: 'message' })
+  expect(parseLogs(raw).entries).toEqual([{ kind: 'raw', raw }])
+})
+
 test('ignores blank lines and returns empty/no-match counts', () => {
   expect(parseLogs('\r\n \n')).toEqual({ query: '', total: 0, matched: 0, entries: [] })
   expect(parseLogs(record('one') + '\n\n' + record('two'), 'missing')).toMatchObject({ total: 2, matched: 0, entries: [] })

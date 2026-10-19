@@ -17,6 +17,7 @@ export function isLogEntry(value: unknown): value is LogEntry {
   if (value.kind === 'raw') return typeof value.raw === 'string'
   return value.kind === 'structured' && typeof value.timestamp === 'string' && Number.isFinite(Date.parse(value.timestamp))
     && Object.hasOwn(value, 'message') && (value.title === undefined || typeof value.title === 'string')
+    && (value.color === undefined || typeof value.color === 'string')
 }
 
 export function isLogsSnapshot(value: unknown): value is LogsSnapshot {

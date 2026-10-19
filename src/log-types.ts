@@ -1,5 +1,5 @@
 export type LogEntry =
-  | { kind: 'structured'; timestamp: string; title?: string; message: unknown }
+  | { kind: 'structured'; timestamp: string; title?: string; color?: string; message: unknown }
   | { kind: 'raw'; raw: string }
 
 export interface LogsResponse {

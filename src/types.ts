@@ -7,6 +7,7 @@ export interface LogViewerOptions {
 
 export interface LogInput {
   title?: string
+  color?: string
   message: unknown
 }
 

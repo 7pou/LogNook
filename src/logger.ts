@@ -37,14 +37,15 @@ function serializeLogInput(input: string | LogInput): string {
   if (typeof value !== 'object' || value === null || Array.isArray(value) || !Object.hasOwn(value, 'message')) {
     throw new TypeError('Log input must be a string or an object containing message')
   }
-  const { title, message } = value
+  const { title, color, message } = value
   if (title !== undefined && typeof title !== 'string') throw new TypeError('Log title must be a string')
+  if (color !== undefined && typeof color !== 'string') throw new TypeError('Log color must be a string')
   if (message === undefined || typeof message === 'function' || typeof message === 'symbol' || (typeof message === 'number' && !Number.isFinite(message))) {
     throw new TypeError('Log message must be JSON serializable')
   }
   const serialized = JSON.stringify(message)
   if (serialized === undefined) throw new TypeError('Log message must be JSON serializable')
-  return JSON.stringify({ timestamp, title, message: JSON.parse(serialized) as unknown }) + '\n'
+  return JSON.stringify({ timestamp, title, color, message: JSON.parse(serialized) as unknown }) + '\n'
 }
 
 export class Logger {
