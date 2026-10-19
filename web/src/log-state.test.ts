@@ -41,3 +41,20 @@ test('missing reset or a mismatched session cannot resurrect a pre-clear snapsho
   expect(mergeSnapshot(previous, logs, [], cursor(1))).toEqual({ state: previous, needsResync: true })
   expect(mergeSnapshot(previous, logs, [], { sessionId: 'new', revision: 0 })).toEqual({ state: previous, needsResync: true })
 })
+
+test('discovers colors from nonmatching live entries and removes inventory on reset', () => {
+  const initial = { ...previous, data: { ...logs, query: 'Alice', colors: ['red'] } }
+  const added = applyChange(initial, {
+    type: 'append', cursor: cursor(1),
+    entry: { kind: 'structured', timestamp: '2026-10-15T02:00:00Z', color: ' blue ', message: 'Bob' },
+  })
+  expect(added.state.data).toMatchObject({ total: 2, matched: 1, colors: ['red', 'blue'] })
+  expect(added.state.data?.entries).toBe(initial.data.entries)
+  const repeated = applyChange(added.state, {
+    type: 'append', cursor: cursor(2),
+    entry: { kind: 'structured', timestamp: '2026-10-15T02:00:00Z', color: 'blue', message: 'Alice' },
+  })
+  expect(repeated.state.data?.colors).toEqual(['red', 'blue'])
+  const cleared = applyChange(repeated.state, { type: 'reset', cursor: cursor(3) })
+  expect(cleared.state.data).toMatchObject({ colors: [], entries: [], total: 0 })
+})

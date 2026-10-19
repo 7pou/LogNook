@@ -22,6 +22,118 @@ beforeEach(() => {
 function ready() { act(() => FakeEventSource.instances.at(-1)!.emit({ type: 'ready', cursor: { sessionId: 'session', revision: 0 } })) }
 function renderApp() { const result = render(<App />); ready(); return result }
 
+const coloredLogs = {
+  ...logs, total: 4, matched: 4, colors: ['red', 'blue'],
+  entries: [
+    { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', title: 'Red log', color: 'red', message: 'Alice' },
+    { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', title: 'Blue log', color: 'blue', message: 'Bob' },
+    { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', title: 'Plain log', message: 'plain' },
+    { kind: 'raw' as const, raw: 'raw log' },
+  ],
+}
+
+test.each(['white', 'transparent'])('keeps the selected center circle distinguishable for %s', async (color) => {
+  const user = userEvent.setup()
+  vi.mocked(fetchLogs).mockResolvedValue({ ...coloredLogs, colors: [color] })
+  renderApp()
+  const button = await screen.findByRole('button', { name: `筛选颜色 ${color}` })
+  await user.click(button)
+  const dot = button.firstElementChild!.firstElementChild!
+  expect(getComputedStyle(dot).outline).toBe('1px solid #94a3b8')
+})
+
+test('shows color rings, adds a center dot on selection and supports multiple colors and clearing', async () => {
+  const user = userEvent.setup()
+  vi.mocked(fetchLogs).mockResolvedValue(coloredLogs)
+  renderApp()
+  const red = await screen.findByRole('button', { name: '筛选颜色 red' })
+  const blue = screen.getByRole('button', { name: '筛选颜色 blue' })
+  expect(red).toHaveAttribute('aria-pressed', 'false')
+  expect(getComputedStyle(red.firstElementChild!).borderColor).toBe('rgb(255, 0, 0)')
+  expect(red.firstElementChild!.children).toHaveLength(0)
+  expect(screen.getByText('匹配 4 / 共 4 条')).toBeInTheDocument()
+  const calls = vi.mocked(fetchLogs).mock.calls.length
+  await user.click(red)
+  expect(red).toHaveAttribute('aria-pressed', 'true')
+  expect(getComputedStyle(red.firstElementChild!.firstElementChild!).backgroundColor).toBe('rgb(255, 0, 0)')
+  expect(screen.getByText('Red log')).toBeInTheDocument()
+  expect(screen.queryByText('Blue log')).not.toBeInTheDocument()
+  expect(screen.queryByText('Plain log')).not.toBeInTheDocument()
+  expect(screen.getByText('匹配 1 / 共 4 条')).toBeInTheDocument()
+  blue.focus()
+  await user.keyboard('[Space]')
+  expect(blue).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText('Blue log')).toBeInTheDocument()
+  expect(screen.getByText('匹配 2 / 共 4 条')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '清空颜色' }))
+  expect(red).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByText('Plain log')).toBeInTheDocument()
+  expect(screen.getByText('匹配 4 / 共 4 条')).toBeInTheDocument()
+  await user.click(red)
+  await user.click(red)
+  expect(screen.getByText('匹配 4 / 共 4 条')).toBeInTheDocument()
+  expect(fetchLogs).toHaveBeenCalledTimes(calls)
+})
+
+test('combines colors with submitted search while retaining all color options and the selection', async () => {
+  const user = userEvent.setup()
+  vi.mocked(fetchLogs).mockImplementation(async (query) => query
+    ? { ...coloredLogs, query, matched: 1, entries: [coloredLogs.entries[0]!] }
+    : coloredLogs)
+  renderApp()
+  await user.click(await screen.findByRole('button', { name: '筛选颜色 blue' }))
+  await user.type(screen.getByRole('searchbox', { name: '关键词' }), 'Alice')
+  expect(screen.getByText('Blue log')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '搜索' }))
+  expect(await screen.findByText('没有匹配的日志')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '筛选颜色 red' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '筛选颜色 blue' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByText('匹配 0 / 共 4 条')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '清空搜索' }))
+  expect(await screen.findByText('Blue log')).toBeInTheDocument()
+  expect(screen.queryByText('Red log')).not.toBeInTheDocument()
+})
+
+test('discovers live colors without widening the current filter and retains expanded entry identity', async () => {
+  const user = userEvent.setup()
+  vi.mocked(fetchLogs).mockResolvedValue(coloredLogs)
+  const { container } = renderApp()
+  await user.click(await screen.findByText('Blue log'))
+  const expanded = container.querySelectorAll('details')[1]!
+  expect(expanded.open).toBe(true)
+  await user.click(screen.getByRole('button', { name: '筛选颜色 blue' }))
+  expect(container.querySelector('details')).toBe(expanded)
+  expect(expanded.open).toBe(true)
+  act(() => FakeEventSource.instances[0]!.emit({
+    type: 'append', cursor: { sessionId: 'session', revision: 1 },
+    entry: { kind: 'structured', timestamp: '2026-10-15T02:00:00Z', title: 'Green log', color: 'green', message: 'new' },
+  }))
+  expect(screen.getByRole('button', { name: '筛选颜色 green' })).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.queryByText('Green log')).not.toBeInTheDocument()
+  expect(screen.getByText('匹配 1 / 共 5 条')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '筛选颜色 green' }))
+  expect(screen.getByText('Green log')).toBeInTheDocument()
+  expect(screen.getByText('匹配 2 / 共 5 条')).toBeInTheDocument()
+  expect(expanded.open).toBe(true)
+})
+
+test('preserves selected colors through resync and reset while removing unused color options', async () => {
+  const user = userEvent.setup()
+  vi.mocked(fetchLogs).mockResolvedValue(coloredLogs)
+  renderApp()
+  await user.click(await screen.findByRole('button', { name: '筛选颜色 red' }))
+  await user.click(screen.getByRole('button', { name: '重新同步' }))
+  ready()
+  await waitFor(() => expect(screen.getByText('实时连接')).toBeInTheDocument())
+  expect(screen.getByRole('button', { name: '筛选颜色 red' })).toHaveAttribute('aria-pressed', 'true')
+  act(() => FakeEventSource.instances.at(-1)!.emit({ type: 'reset', cursor: { sessionId: 'session', revision: 1 } }))
+  expect(screen.getByText('暂无日志')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '筛选颜色 red' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.queryByRole('button', { name: '筛选颜色 blue' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: '清空颜色' }))
+  expect(screen.queryByRole('button', { name: '筛选颜色 red' })).not.toBeInTheDocument()
+})
+
 test('mounts the generic log viewer and loads logs', async () => {
   renderApp()
   expect(screen.getByRole('heading', { name: 'LogNook 日志查看器' })).toBeInTheDocument()

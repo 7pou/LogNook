@@ -1,5 +1,6 @@
 import type { LogEntry, LogsResponse } from './log-types'
 import { matchesLogEntry, normalizeQuery } from './log-matcher'
+import { getLogColors } from './log-colors'
 
 function parseEntry(raw: string): LogEntry {
   try {
@@ -19,5 +20,5 @@ export function parseLogs(content: string, query = ''): Omit<LogsResponse, 'file
   const entries = content.split(/\r?\n/).filter((line) => line.trim() !== '').map(parseEntry)
   const normalized = normalizeQuery(query)
   const matches = entries.filter((entry) => matchesLogEntry(entry, normalized))
-  return { query: normalized, total: entries.length, matched: matches.length, entries: matches }
+  return { query: normalized, total: entries.length, matched: matches.length, entries: matches, colors: getLogColors(entries) }
 }

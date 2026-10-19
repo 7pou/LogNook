@@ -8,6 +8,7 @@ export interface LogsResponse {
   total: number
   matched: number
   entries: LogEntry[]
+  colors?: string[]
 }
 
 export interface LogsErrorResponse {

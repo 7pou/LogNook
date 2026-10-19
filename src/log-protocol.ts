@@ -25,6 +25,7 @@ export function isLogsSnapshot(value: unknown): value is LogsSnapshot {
     && Number.isSafeInteger(value.total) && Number(value.total) >= 0
     && Number.isSafeInteger(value.matched) && Number(value.matched) >= 0 && Number(value.matched) <= Number(value.total)
     && Array.isArray(value.entries) && value.entries.length === value.matched && value.entries.every(isLogEntry)
+    && (value.colors === undefined || (Array.isArray(value.colors) && value.colors.every((color) => typeof color === 'string')))
     && isLogCursor(value.cursor) && typeof value.clearToken === 'string' && value.clearToken.length > 0
 }
 

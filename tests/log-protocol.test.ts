@@ -40,4 +40,7 @@ test('validates the complete snapshot and its counts', () => {
   expect(isLogsSnapshot({ ...snapshot, total: '0' })).toBe(false)
   expect(isLogsSnapshot({ ...snapshot, clearToken: '' })).toBe(false)
   expect(isLogsSnapshot({ ...snapshot, cursor: null })).toBe(false)
+  expect(isLogsSnapshot({ ...snapshot, colors: ['red', 'blue'] })).toBe(true)
+  expect(isLogsSnapshot({ ...snapshot, colors: 'red' })).toBe(false)
+  expect(isLogsSnapshot({ ...snapshot, colors: [123] })).toBe(false)
 })

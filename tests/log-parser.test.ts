@@ -32,6 +32,18 @@ test.each([123, null, {}, []])('preserves records with invalid color %j as raw t
 })
 
 test('ignores blank lines and returns empty/no-match counts', () => {
-  expect(parseLogs('\r\n \n')).toEqual({ query: '', total: 0, matched: 0, entries: [] })
+  expect(parseLogs('\r\n \n')).toEqual({ query: '', total: 0, matched: 0, entries: [], colors: [] })
   expect(parseLogs(record('one') + '\n\n' + record('two'), 'missing')).toMatchObject({ total: 2, matched: 0, entries: [] })
+})
+
+test('lists distinct nonempty colors from the whole file independently of keyword matches', () => {
+  const content = [
+    JSON.stringify({ timestamp: '2026-10-15T02:00:00Z', color: 'red', message: 'Alice' }),
+    JSON.stringify({ timestamp: '2026-10-15T02:00:00Z', color: ' blue ', message: 'Bob' }),
+    JSON.stringify({ timestamp: '2026-10-15T02:00:00Z', color: 'red', message: 'other' }),
+    JSON.stringify({ timestamp: '2026-10-15T02:00:00Z', color: '  ', message: 'blank color' }),
+    record('plain log'), '{partial',
+  ].join('\n')
+  expect(parseLogs(content, 'Alice')).toMatchObject({ total: 6, matched: 1, colors: ['red', 'blue'] })
+  expect(parseLogs(content, 'missing')).toMatchObject({ matched: 0, colors: ['red', 'blue'] })
 })

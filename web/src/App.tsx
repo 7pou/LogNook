@@ -6,6 +6,8 @@ import { useClearLogs } from './useClearLogs'
 import { ClearLogsButton } from './components/ClearLogsButton'
 import { RecordingButton } from './components/RecordingButton'
 import { useRecording } from './useRecording'
+import { ColorFilter } from './components/ColorFilter'
+import { getLogColors } from '../../src/log-colors'
 
 function readQuery(): string {
   return (new URL(window.location.href).searchParams.get('q') ?? '').trim()
@@ -16,7 +18,9 @@ export default function App() {
   const [draft, setDraft] = useState(readQuery)
   const [refreshKey, setRefreshKey] = useState(0)
   const [showTime, setShowTime] = useState(true)
+  const [selectedColors, setSelectedColors] = useState<string[]>([])
   const { data, loading, error, batch, connection, recording, recordingError, applyClear, applyRecording } = useLogs(query, refreshKey)
+  const colors = [...new Set([...(data?.colors ?? getLogColors(data?.entries ?? [])), ...selectedColors])]
   const canClear = data !== null && !loading && connection === 'live'
   const clearing = useClearLogs(data, canClear, applyClear)
   const recordingControl = useRecording(recording, data, canClear, applyRecording, recordingError)
@@ -48,6 +52,10 @@ export default function App() {
     if (next === query) refresh()
   }
 
+  function toggleColor(color: string) {
+    setSelectedColors((previous) => previous.includes(color) ? previous.filter((selected) => selected !== color) : [...previous, color])
+  }
+
   return (
     <main className="mx-auto max-w-[1180px] px-4 py-6 md:px-8 md:py-11">
       <header className="mb-7.5 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
@@ -74,6 +82,7 @@ export default function App() {
         </div>
         <div className="px-3 py-4 sm:px-4">
           <SearchBar draft={draft} onDraftChange={setDraft} onSearch={() => submit(draft)} onClear={() => submit('')} />
+          {data && <ColorFilter colors={colors} selectedColors={selectedColors} onToggle={toggleColor} onClear={() => setSelectedColors([])} />}
         </div>
       </section>
       {recordingControl.error && <p role="alert" className="mt-3 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 wrap-anywhere">{recordingControl.error}</p>}
@@ -82,7 +91,7 @@ export default function App() {
         <div><p>{error}</p>{data && <p className="mt-1 text-xs">读取失败，当前显示上次成功读取的结果。</p>}</div>
         <button type="button" className="button-secondary" onClick={refresh}>重试</button>
       </div>}
-      {data && <LogList entries={data.entries} total={data.total} matched={data.matched} batch={batch} showTime={showTime} onShowTimeChange={setShowTime} />}
+      {data && <LogList entries={data.entries} total={data.total} matched={data.matched} batch={batch} showTime={showTime} onShowTimeChange={setShowTime} selectedColors={selectedColors} />}
       <footer className="mt-5 text-xs leading-relaxed text-slate-500">仅供本机调试。本实例的新日志实时追加，重连后重新同步；时间按浏览器本地时区显示。</footer>
     </main>
   )
