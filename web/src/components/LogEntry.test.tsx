@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, test, vi } from 'vitest'
 import { deferred } from '../test/fixtures'
@@ -15,9 +15,13 @@ test('formats structured detail, renders title as text and uses browser-local ti
   expect(screen.getByText('<script>bad()</script>')).toBeInTheDocument()
   expect(container.querySelector('script')).toBeNull()
   expect(container.querySelector('time')).toHaveTextContent(new Date(timestamp).toLocaleString())
-  expect(container.querySelector('pre')?.textContent).toBe('{\n  "name": "Alice"\n}')
+  expect(container.querySelector('summary')).toHaveTextContent('{ "name": "Alice" }')
+  expect(container.querySelector('[role="tree"]')).toBeNull()
   await userEvent.setup().click(container.querySelector('summary')!)
   expect(container.querySelector('details')!.open).toBe(true)
+  const tree = await screen.findByRole('tree', { name: 'JSON 消息' })
+  expect(within(tree).getByText('"name":')).toBeInTheDocument()
+  expect(within(tree).getByText('"Alice"')).toBeInTheDocument()
 })
 
 test.each([
@@ -104,9 +108,86 @@ test.each([
   expect(container.querySelector('img')).toBeNull()
 })
 
-test.each([null, [1, 2], false, 42])('formats JSON message %j', (message) => {
+test.each([null, false, 42])('formats JSON message %j', (message) => {
   const { container } = render(<LogEntry entry={{ kind: 'structured', timestamp: '2026-10-15T02:00:00Z', message }} />)
   expect(container.querySelector('pre')?.textContent).toBe(JSON.stringify(message, null, 2))
+})
+
+test.each([
+  { name: 'object', entry: { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: { name: 'Alice' } }, expected: '"name":"Alice"' },
+  { name: 'array', entry: { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: [1, 2] }, expected: '[1,2]' },
+  { name: 'JSON string', entry: { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: '  {"name":"Alice"}\n' }, expected: '"name":"Alice"' },
+  { name: 'raw JSON array', entry: { kind: 'raw' as const, raw: '[1,2]' }, expected: '[1,2]' },
+  { name: 'empty object', entry: { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: {} }, expected: '{}' },
+  { name: 'empty array', entry: { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: [] }, expected: '[]' },
+])('renders the $name as a JSON tree only in the detail area and preserves preview and copying', async ({ entry, expected }) => {
+  const user = userEvent.setup()
+  const { container } = render(<LogEntry entry={entry} />)
+  const summary = container.querySelector('summary')!
+  const preview = summary.textContent
+  const text = entry.kind === 'raw' ? entry.raw : typeof entry.message === 'string' ? entry.message : JSON.stringify(entry.message, null, 2)
+  expect(container.querySelector('[role="tree"]')).toBeNull()
+  await user.click(summary)
+  const tree = await screen.findByRole('tree', { name: 'JSON 消息' })
+  expect(tree).toHaveTextContent(expected)
+  expect(summary).not.toContainElement(tree)
+  expect(summary.textContent).toBe(preview)
+  await user.click(screen.getByRole('button', { name: '复制消息' }))
+  expect(await navigator.clipboard.readText()).toBe(text)
+  expect(container.querySelector('details')!.open).toBe(true)
+})
+
+test('collapses nested objects and arrays, supports keyboard expansion and retains tree state', async () => {
+  const user = userEvent.setup()
+  const entry = { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: { user: { name: 'Alice' }, items: [{ id: 1 }] } }
+  const { container, rerender } = render(<LogEntry entry={entry} />)
+  const details = container.querySelector('details')!
+  await user.click(details.querySelector('summary')!)
+  const tree = await screen.findByRole('tree', { name: 'JSON 消息' })
+  const userNode = within(tree).getByText('"user":').closest('[role="treeitem"]')!
+  const itemsNode = within(tree).getByText('"items":').closest('[role="treeitem"]')!
+  expect(userNode).toHaveAttribute('aria-expanded', 'false')
+  expect(itemsNode).toHaveAttribute('aria-expanded', 'false')
+  expect(within(tree).queryByText('"Alice"')).not.toBeInTheDocument()
+  await user.click(within(userNode as HTMLElement).getByRole('button', { name: '展开 JSON' }))
+  expect(within(tree).getByText('"Alice"')).toBeInTheDocument()
+  const itemsButton = within(itemsNode as HTMLElement).getByRole('button', { name: '展开 JSON' })
+  itemsButton.focus()
+  await user.keyboard('{ArrowRight}')
+  expect(itemsNode).toHaveAttribute('aria-expanded', 'true')
+  expect(within(itemsNode as HTMLElement).getByRole('button', { name: '展开 JSON' })).toHaveAttribute('aria-expanded', 'false')
+  await user.keyboard('{ArrowLeft}')
+  expect(itemsNode).toHaveAttribute('aria-expanded', 'false')
+  expect(details.open).toBe(true)
+  rerender(<LogEntry entry={entry} showTime={false} />)
+  expect(userNode).toHaveAttribute('aria-expanded', 'true')
+  await user.click(details.querySelector('summary')!)
+  expect(details.open).toBe(false)
+  await user.click(details.querySelector('summary')!)
+  expect(within(screen.getByRole('tree')).getByText('"Alice"')).toBeInTheDocument()
+  await user.click(within(userNode as HTMLElement).getByRole('button', { name: '收起 JSON' }))
+  expect(userNode).toHaveAttribute('aria-expanded', 'false')
+})
+
+test('uses distinct colors for JSON types and renders keys and values as text even in unsafe title mode', async () => {
+  const message = { '<img src=x>': '<script>bad()</script>', count: 42, active: true, empty: null, multiline: 'first\nsecond' }
+  const { container } = render(<LogEntry entry={{ kind: 'structured', timestamp: '2026-10-15T02:00:00Z', message }} disableSafeRendering />)
+  await userEvent.setup().click(container.querySelector('summary')!)
+  const tree = await screen.findByRole('tree')
+  expect(within(tree).getByText('"<img src=x>":')).toHaveClass('text-slate-700')
+  expect(within(tree).getByText('"<script>bad()</script>"')).toHaveClass('text-emerald-700')
+  expect(within(tree).getByText('42')).toHaveClass('text-blue-700')
+  expect(within(tree).getByText('true')).toHaveClass('text-violet-700')
+  expect(within(tree).getByText('null')).toHaveClass('text-slate-500')
+  expect(within(tree).getByText('"first\\nsecond"')).toBeInTheDocument()
+  expect(tree.querySelector('img, script')).toBeNull()
+})
+
+test.each(['ordinary text\nsecond line', '{broken JSON}', 'null', '42', 'false', '"string"'])('preserves non-container message %j as text when expanded', async (message) => {
+  const { container } = render(<LogEntry entry={{ kind: 'structured', timestamp: '2026-10-15T02:00:00Z', message }} />)
+  await userEvent.setup().click(container.querySelector('summary')!)
+  expect(container.querySelector('pre')?.textContent).toBe(message)
+  expect(container.querySelector('[role="tree"]')).toBeNull()
 })
 
 test.each([

@@ -68,7 +68,7 @@ test('retains exact installed third-party license texts and versions for the web
   const notices = readFileSync(new URL('../THIRD_PARTY_NOTICES.md', import.meta.url), 'utf8').replace(/\r\n/g, '\n')
   const webRequire = createRequire(new URL('../web/package.json', import.meta.url))
   const domRequire = createRequire(webRequire.resolve('react-dom/package.json'))
-  for (const name of ['react', 'react-dom', 'scheduler', 'tailwindcss']) {
+  for (const name of ['react', 'react-dom', 'scheduler', 'tailwindcss', 'react-json-view-lite']) {
     const resolver = name === 'scheduler' ? domRequire : webRequire
     const metadataPath = resolver.resolve(`${name}/package.json`)
     const metadata = JSON.parse(readFileSync(metadataPath, 'utf8'))

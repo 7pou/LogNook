@@ -1,14 +1,19 @@
+import { useState } from 'react'
 import type { LogEntry as LogEntryData } from '../../../src/log-types'
 import { CopyMessageButton } from './CopyMessageButton'
+import { JsonMessage } from './JsonMessage'
 import { LogTitle } from './LogTitle'
 
 export function LogEntry({ entry, showTime = true, disableSafeRendering = false }: { entry: LogEntryData; showTime?: boolean; disableSafeRendering?: boolean }) {
+  const [hasExpanded, setHasExpanded] = useState(false)
   const message = entry.kind === 'raw' ? entry.raw
     : typeof entry.message === 'string' ? entry.message : JSON.stringify(entry.message, null, 2)
   const preview = message.replace(/\s+/g, ' ')
 
   return (
-    <details className="group border-t border-slate-200 first:border-t-0 open:bg-blue-50/40">
+    <details className="group border-t border-slate-200 first:border-t-0 open:bg-blue-50/40" onToggle={(event) => {
+      if (event.currentTarget.open) setHasExpanded(true)
+    }}>
       <summary className="grid cursor-pointer grid-cols-[12px_minmax(0,1fr)] items-baseline gap-2 p-4 md:grid-cols-[16px_180px_minmax(80px,160px)_minmax(0,1fr)] md:gap-3">
         <span aria-hidden="true" className="font-mono text-slate-500" style={entry.kind === 'structured' && entry.color ? { color: entry.color } : undefined}><span className="group-open:hidden">+</span><span className="hidden group-open:inline">−</span></span>
         {showTime && (entry.kind === 'structured'
@@ -21,7 +26,9 @@ export function LogEntry({ entry, showTime = true, disableSafeRendering = false 
         </span>
       </summary>
       <div className="border-t border-slate-200 px-5 py-4 md:pr-6 md:pb-5 md:pl-11">
-        <pre className="font-mono text-[13px] leading-7 whitespace-pre-wrap wrap-anywhere">{message}</pre>
+        {hasExpanded
+          ? <JsonMessage message={entry.kind === 'raw' ? entry.raw : entry.message} text={message} />
+          : <pre className="font-mono text-[13px] leading-7 whitespace-pre-wrap wrap-anywhere">{message}</pre>}
       </div>
     </details>
   )

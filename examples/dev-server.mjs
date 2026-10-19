@@ -1,6 +1,6 @@
 import { LogViewer } from '../dist/index.mjs'
 
-const viewer = new LogViewer({ port: 8999 })
+const viewer = new LogViewer({ port: 8899 })
 try {
   await viewer.log({ title: '开发示例', message: { name: 'Alice', ready: true } })
   console.log(await viewer.server())
