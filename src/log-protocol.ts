@@ -13,7 +13,7 @@ export function isLogCursor(value: unknown): value is LogCursor {
 }
 
 export function isLogEntry(value: unknown): value is LogEntry {
-  if (!isRecord(value)) return false
+  if (!isRecord(value) || (value.titleHtml !== undefined && typeof value.titleHtml !== 'string')) return false
   if (value.kind === 'raw') return typeof value.raw === 'string'
   return value.kind === 'structured' && typeof value.timestamp === 'string' && Number.isFinite(Date.parse(value.timestamp))
     && Object.hasOwn(value, 'message') && (value.title === undefined || typeof value.title === 'string')
@@ -26,6 +26,7 @@ export function isLogsSnapshot(value: unknown): value is LogsSnapshot {
     && Number.isSafeInteger(value.matched) && Number(value.matched) >= 0 && Number(value.matched) <= Number(value.total)
     && Array.isArray(value.entries) && value.entries.length === value.matched && value.entries.every(isLogEntry)
     && (value.colors === undefined || (Array.isArray(value.colors) && value.colors.every((color) => typeof color === 'string')))
+    && (value.disableSafeRendering === undefined || typeof value.disableSafeRendering === 'boolean')
     && isLogCursor(value.cursor) && typeof value.clearToken === 'string' && value.clearToken.length > 0
 }
 

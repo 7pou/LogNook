@@ -91,7 +91,7 @@ export default function App() {
         <div><p>{error}</p>{data && <p className="mt-1 text-xs">读取失败，当前显示上次成功读取的结果。</p>}</div>
         <button type="button" className="button-secondary" onClick={refresh}>重试</button>
       </div>}
-      {data && <LogList entries={data.entries} total={data.total} matched={data.matched} batch={batch} showTime={showTime} onShowTimeChange={setShowTime} selectedColors={selectedColors} />}
+      {data && <LogList entries={data.entries} total={data.total} matched={data.matched} batch={batch} showTime={showTime} onShowTimeChange={setShowTime} selectedColors={selectedColors} disableSafeRendering={data.disableSafeRendering === true} />}
       <footer className="mt-5 text-xs leading-relaxed text-slate-500">仅供本机调试。本实例的新日志实时追加，重连后重新同步；时间按浏览器本地时区显示。</footer>
     </main>
   )

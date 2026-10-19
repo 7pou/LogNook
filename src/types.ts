@@ -3,6 +3,8 @@ export interface LogViewerOptions {
   filename?: string
   port?: number
   filter?: (input: string | LogInput) => boolean
+  renderTitle?: (input: LogInput) => string
+  disableSafeRendering?: boolean
 }
 
 export interface LogInput {
@@ -16,6 +18,8 @@ export interface ResolvedLogViewerOptions {
   filename: string
   logPath: string
   port: number
+  renderTitle?: LogViewerOptions['renderTitle']
+  disableSafeRendering: boolean
 }
 
 export interface ServerInfo {

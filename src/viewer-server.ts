@@ -7,6 +7,7 @@ import { Logger, LogStoreClosedError } from './logger'
 import { SseConnections } from './sse-connections'
 import { resolveStaticAsset } from './static-assets'
 import type { RecordingControls } from './recording-protocol'
+import { renderEntryTitle } from './render-title'
 
 function isLocalRequest(request: IncomingMessage): boolean {
   const host = request.headers.host
@@ -118,7 +119,9 @@ export class HtmlServer {
       }
       try {
         if (rawPath === '/api/events') {
-          await this.streams.connect(response, (listener) => this.logger.subscribe(listener), this.recording)
+          await this.streams.connect(response, (listener) => this.logger.subscribe((event) => {
+            listener(event.type === 'append' ? { ...event, entry: renderEntryTitle(event.entry, this.options.renderTitle) } : event)
+          }), this.recording)
         } else if (recordingRoute) {
           if (!this.recording) {
             this.json(response, 503, { error: '录制控制不可用。' }, request.method === 'HEAD')
@@ -132,7 +135,8 @@ export class HtmlServer {
           this.json(response, 200, await this.logger.clear())
         } else {
           const snapshot = await this.logger.readSnapshot(url.searchParams.get('q') ?? '')
-          this.json(response, 200, { filename: this.options.filename, clearToken: this.clearToken, ...snapshot }, request.method === 'HEAD')
+          const entries = snapshot.entries.map((entry) => renderEntryTitle(entry, this.options.renderTitle))
+          this.json(response, 200, { filename: this.options.filename, clearToken: this.clearToken, ...snapshot, entries, disableSafeRendering: this.options.disableSafeRendering }, request.method === 'HEAD')
         }
       } catch (error) {
         if (response.headersSent) { response.destroy(); return }
@@ -161,7 +165,9 @@ export class HtmlServer {
     response.writeHead(200, {
       'Content-Type': asset.contentType,
       'Cache-Control': asset.cacheControl,
-      'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+      'Content-Security-Policy': this.options.disableSafeRendering
+        ? "base-uri 'none'; frame-ancestors 'none'"
+        : "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'",
     })
     response.end(request.method === 'HEAD' ? undefined : content)
   }

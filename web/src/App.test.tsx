@@ -22,6 +22,26 @@ beforeEach(() => {
 function ready() { act(() => FakeEventSource.instances.at(-1)!.emit({ type: 'ready', cursor: { sessionId: 'session', revision: 0 } })) }
 function renderApp() { const result = render(<App />); ready(); return result }
 
+test.each([false, true])('applies server safe-rendering mode %s to both historical and live titles', async (disableSafeRendering) => {
+  vi.mocked(fetchLogs).mockResolvedValue({ ...logs, disableSafeRendering,
+    entries: [{ kind: 'structured', timestamp: '2026-10-15T02:00:00Z', message: 'message', titleHtml: '<strong style="color:red">Historical title</strong>' }],
+  })
+  renderApp()
+  const historical = await screen.findByText('Historical title')
+  expect(historical.hasAttribute('style')).toBe(disableSafeRendering)
+  act(() => FakeEventSource.instances[0]!.emit({
+    type: 'append', cursor: { sessionId: 'session', revision: 1 },
+    entry: { kind: 'structured', timestamp: '2026-10-15T02:00:00Z', message: 'live message', titleHtml: '<em style="color:blue">Live title</em>' },
+  }))
+  expect(screen.getByText('Live title').hasAttribute('style')).toBe(disableSafeRendering)
+  act(() => FakeEventSource.instances[0]!.emit({ type: 'reset', cursor: { sessionId: 'session', revision: 2 } }))
+  act(() => FakeEventSource.instances[0]!.emit({
+    type: 'append', cursor: { sessionId: 'session', revision: 3 },
+    entry: { kind: 'structured', timestamp: '2026-10-15T02:00:00Z', message: 'after reset', titleHtml: '<em style="color:blue">After reset</em>' },
+  }))
+  expect(screen.getByText('After reset').hasAttribute('style')).toBe(disableSafeRendering)
+})
+
 const coloredLogs = {
   ...logs, total: 4, matched: 4, colors: ['red', 'blue'],
   entries: [

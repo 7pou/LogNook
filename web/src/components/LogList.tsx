@@ -10,9 +10,10 @@ interface LogListProps {
   showTime: boolean
   onShowTimeChange: (showTime: boolean) => void
   selectedColors?: readonly string[]
+  disableSafeRendering?: boolean
 }
 
-export function LogList({ entries, total, matched, batch, showTime, onShowTimeChange, selectedColors = [] }: LogListProps) {
+export function LogList({ entries, total, matched, batch, showTime, onShowTimeChange, selectedColors = [], disableSafeRendering = false }: LogListProps) {
   const visibleEntries = entries.map((entry, index) => ({ entry, index }))
     .filter(({ entry }) => selectedColors.length === 0 || selectedColors.includes(getEntryColor(entry) ?? ''))
   const visibleMatched = selectedColors.length > 0 ? visibleEntries.length : matched
@@ -29,7 +30,7 @@ export function LogList({ entries, total, matched, batch, showTime, onShowTimeCh
         </div>
       </div>
       <div className="overflow-hidden rounded-md border border-slate-200 bg-white">
-        {visibleEntries.length > 0 ? visibleEntries.map(({ entry, index }) => <LogEntry key={`${batch}:${index}`} entry={entry} showTime={showTime} />)
+        {visibleEntries.length > 0 ? visibleEntries.map(({ entry, index }) => <LogEntry key={`${batch}:${index}`} entry={entry} showTime={showTime} disableSafeRendering={disableSafeRendering} />)
           : <div role="status" className="px-6 py-9 text-slate-500">{total === 0 ? '暂无日志' : '没有匹配的日志'}</div>}
       </div>
     </>

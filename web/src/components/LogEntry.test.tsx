@@ -21,6 +21,52 @@ test('formats structured detail, renders title as text and uses browser-local ti
 })
 
 test.each([
+  { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', title: 'Original', message: 'message' },
+  { kind: 'raw' as const, raw: 'raw message' },
+])('renders custom title markup for $kind without changing the message or detail controls', async (original) => {
+  const user = userEvent.setup()
+  const entry = { ...original, titleHtml: '<div><strong>Custom title</strong></div>' }
+  const { container } = render(<LogEntry entry={entry} />)
+  expect(container.querySelector('strong')).toHaveTextContent('Custom title')
+  expect(screen.queryByText('Original')).not.toBeInTheDocument()
+  await user.click(screen.getByText('Custom title'))
+  expect(container.querySelector('details')!.open).toBe(true)
+  await user.click(screen.getByRole('button', { name: '复制消息' }))
+  expect(await navigator.clipboard.readText()).toBe(original.kind === 'raw' ? original.raw : 'message')
+  expect(container.querySelector('details')!.open).toBe(true)
+})
+
+test('removes unsafe title HTML, external resources and inline styles while preserving text markup', () => {
+  const entry = { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', message: 'message',
+    titleHtml: '<div onclick="bad()" style="background-image:url(https://evil.example)"><b>Safe title</b><script>bad()</script><img src="https://evil.example" onerror="bad()"><iframe src="https://evil.example"></iframe><svg onload="bad()"></svg><a href="javascript:bad()">Link</a><button>Action</button></div>' }
+  const { container } = render(<LogEntry entry={entry} />)
+  expect(container.querySelector('b')).toHaveTextContent('Safe title')
+  const title = container.querySelector('b')!.parentElement!
+  expect(title.querySelector('script, img, iframe, svg, button')).toBeNull()
+  expect(title).not.toHaveAttribute('onclick')
+  expect(title).not.toHaveAttribute('style')
+  expect(container.querySelector('a')).not.toHaveAttribute('href')
+})
+
+test('bypasses every title filter only when safe rendering is explicitly disabled and re-filters when enabled', () => {
+  const entry = { kind: 'structured' as const, timestamp: '2026-10-15T02:00:00Z', title: 'Original', message: '<b>plain message</b>',
+    titleHtml: '<i style="color:red" onclick="bad()"><svg><circle cx="5" cy="5" r="4"></circle></svg><button>Action</button><script>bad()</script>Trusted title</i>' }
+  const { container, rerender } = render(<LogEntry entry={entry} disableSafeRendering />)
+  const title = container.querySelector('i')!
+  expect(title).toHaveAttribute('style', 'color:red')
+  expect(title).toHaveAttribute('onclick', 'bad()')
+  expect(title.querySelector('svg')).not.toBeNull()
+  expect(title.querySelector('button')).toHaveTextContent('Action')
+  expect(title.querySelector('script')).not.toBeNull()
+  expect(container.querySelector('pre')?.textContent).toBe('<b>plain message</b>')
+  expect(container.querySelector('pre b')).toBeNull()
+  rerender(<LogEntry entry={entry} disableSafeRendering={false} />)
+  expect(container.querySelector('i')).not.toHaveAttribute('style')
+  expect(container.querySelector('i')).not.toHaveAttribute('onclick')
+  expect(container.querySelector('i')!.querySelector('svg, button, script')).toBeNull()
+})
+
+test.each([
   { color: '#ef4444', expected: 'rgb(239, 68, 68)' },
   { color: 'red', expected: 'red' },
   { color: 'rgb(239, 68, 68)', expected: 'rgb(239, 68, 68)' },

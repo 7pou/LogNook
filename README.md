@@ -33,6 +33,8 @@ interface LogViewerOptions {
   filename?: string
   port?: number
   filter?: (input: string | LogInput) => boolean
+  renderTitle?: (input: LogInput) => string
+  disableSafeRendering?: boolean
 }
 
 interface LogInput {
@@ -62,10 +64,42 @@ class LogViewer {
 | `filename` | `app.log` | 日志文件名；不包含目录，不自动按日期切换文件 |
 | `port` | `8899` | 本机 Web 服务端口；支持 `0` 由系统分配可用端口 |
 | `filter` | 无 | 同步接收原始字符串或 `LogInput`；仅明确返回 `false` 时跳过该条日志 |
+| `renderTitle` | 无 | 同步返回用于 Web 标题的 HTML；不改变日志文件，省略时按纯文本显示标题 |
+| `disableSafeRendering` | `false` | 仅显式设为 `true` 时，跳过自定义标题的 HTML 安全过滤，并解除页面 CSP 的内容限制；仅用于完全可信的 HTML |
 
 默认只监听 `127.0.0.1`，不提供远程访问配置。
 
 `filter` 在序列化和文件写入前执行，跳过时 `log()` 返回已完成的 `Promise<void>`，不写文件也不推送事件。暂停录制时不执行过滤器。过滤器应同步返回，避免抛出异常；抛出的异常会从 `log()` 同步传播，不会变为异步拒绝。
+
+## 自定义 Web 标题
+
+```ts
+const viewer = new LogViewer({
+  renderTitle(input: LogInput) {
+    return typeof input.message === 'string'
+      ? '<div><strong>文本日志</strong></div>'
+      : '<div class="text-blue-900"><strong>结构化日志</strong></div>'
+  },
+})
+```
+
+- `renderTitle` 仅在生成 Web 历史结果和实时追加事件时调用，写入日志时不调用，也不把 HTML 保存到文件。旧日志会使用当前实例的回调重新渲染；搜索仍匹配原始标题和消息，复制仍只包含消息。
+- 回调参数始终为 `LogInput`，从文件记录重建：直接写入字符串、`{ message: '文本' }` 和无法解析的原始行都通过 `input.message` 提供文本；结构化记录保留可选的 `title`、`color` 和原始 `message`。对象消息提供独立副本，修改回调输入不会改变原始日志或 Web 消息内容。
+- 回调必须同步返回字符串，可能因搜索、同步或多个页面而重复调用，应保持无副作用。抛出异常或返回非字符串（包括 Promise）时，该条日志退回原来的纯文本标题；返回空字符串则显示空标题。
+- 默认使用 DOMPurify 过滤 HTML，支持 `div`、`span`、`strong`、`em` 等文本标记和已有样式类；不支持脚本、事件处理属性、内联样式、表单控件、图片、iframe、SVG 等内容。插入日志字段时仍应先做 HTML 文本转义，安全过滤不替代转义。Node.js 包不新增运行时依赖，DOMPurify 随 Web 静态资源打包。
+
+若 HTML 完全由你控制，可以显式关闭安全渲染，使用内联样式等内容：
+
+```ts
+const viewer = new LogViewer({
+  disableSafeRendering: true,
+  renderTitle: () => '<i style="color:red">自定义标题</i>',
+})
+```
+
+- **风险提示：** `disableSafeRendering: true` 原样渲染回调返回的 HTML，不调用 DOMPurify，也不移除标签或属性；页面 CSP 不再限制脚本、样式、资源请求等内容，可能执行不可信代码或泄露日志数据。只对完全可信的 HTML 开启，动态文本仍由调用方负责转义。
+- 此模式保留本机 Host/Origin 与操作令牌检查，以及 CSP 的 `base-uri` 和 `frame-ancestors` 页面隔离限制；不改变日志文件，也不把默认标题或消息改为 HTML。安全渲染选项仅由实例配置决定，日志内容不能开启它，非布尔值会被拒绝。
+- 原样插入 HTML 仍遵循浏览器自身行为，不会额外执行通过 `innerHTML` 插入的 `<script>`；这不是 LogNook 的过滤。
 
 ## 使用示例
 
@@ -107,7 +141,7 @@ try {
 - `server()` 完成表示监听成功，返回实际端口与 URL；重复调用不重复启动。
 - `close()` 停止接受新的日志操作，等待已接受的队列任务结束，并关闭 SSE 连接和服务；关闭后不能复用该实例。
 - 文件尚不存在时网页显示“暂无日志”；无法解析的日志行按原文显示。
-- 页面将日志作为文本渲染，不执行日志中的 HTML 或脚本。
+- 默认将日志标题和消息作为文本渲染，不执行日志中的 HTML 或脚本；配置 `renderTitle` 后，标题默认使用经过安全过滤的 HTML，仅显式开启 `disableSafeRendering` 时原样渲染回调 HTML，消息始终按文本显示。
 
 ## 网页操作
 

@@ -3,10 +3,24 @@ import { join, resolve } from 'node:path'
 import { expect, test } from 'vitest'
 import { resolveOptions } from '../src/config'
 import { withTempDir } from './helpers'
+import type { LogViewerOptions } from '../src/types'
 
 test('resolves defaults', () => {
   const directory = resolve(process.cwd(), 'logs')
-  expect(resolveOptions()).toEqual({ directory, filename: 'app.log', logPath: join(directory, 'app.log'), port: 8899 })
+  expect(resolveOptions()).toEqual({ directory, filename: 'app.log', logPath: join(directory, 'app.log'), port: 8899, disableSafeRendering: false })
+})
+
+test.each([123, null, 'html'])('rejects a non-function renderTitle %j', (renderTitle) => {
+  expect(() => resolveOptions({ renderTitle } as unknown as LogViewerOptions)).toThrow(TypeError)
+})
+
+test.each([true, false])('resolves disableSafeRendering %s', (disableSafeRendering) => {
+  const options = { disableSafeRendering }
+  expect(resolveOptions(options).disableSafeRendering).toBe(disableSafeRendering)
+})
+
+test.each(['true', 0, null])('rejects non-boolean disableSafeRendering %j', (disableSafeRendering) => {
+  expect(() => resolveOptions({ disableSafeRendering } as unknown as LogViewerOptions)).toThrow(TypeError)
 })
 
 test.each(['../app.log', 'nested/app.log', 'nested\\app.log', 'C:\\logs\\app.log', '/tmp/app.log', 'app.txt', ''])('rejects filename %s', (filename) => {
@@ -23,7 +37,7 @@ test.each(['', '   '])('rejects empty directory %s', (dir) => {
 
 test('accepts dynamic ports and resolves custom directory', () => {
   expect(resolveOptions({ dir: './custom', filename: 'custom.log', port: 0 })).toEqual({
-    directory: resolve('./custom'), filename: 'custom.log', logPath: resolve('./custom/custom.log'), port: 0,
+    directory: resolve('./custom'), filename: 'custom.log', logPath: resolve('./custom/custom.log'), port: 0, disableSafeRendering: false,
   })
 })
 

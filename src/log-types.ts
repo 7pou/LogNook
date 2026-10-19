@@ -1,6 +1,6 @@
 export type LogEntry =
-  | { kind: 'structured'; timestamp: string; title?: string; color?: string; message: unknown }
-  | { kind: 'raw'; raw: string }
+  | { kind: 'structured'; timestamp: string; title?: string; color?: string; message: unknown; titleHtml?: string }
+  | { kind: 'raw'; raw: string; titleHtml?: string }
 
 export interface LogsResponse {
   filename: string
@@ -16,7 +16,7 @@ export interface LogsErrorResponse {
 }
 
 export interface LogCursor { sessionId: string; revision: number }
-export interface LogsSnapshot extends LogsResponse { cursor: LogCursor; clearToken: string }
+export interface LogsSnapshot extends LogsResponse { cursor: LogCursor; clearToken: string; disableSafeRendering?: boolean }
 export type LogSnapshotData = Omit<LogsSnapshot, 'filename' | 'clearToken'>
 export interface ClearLogsResponse { cursor: LogCursor }
 export type LogChangePayload = { type: 'append'; entry: LogEntry } | { type: 'reset' } | { type: 'resync' }

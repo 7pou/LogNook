@@ -1,7 +1,13 @@
 import { LogViewer } from 'lognook'
 import type { LogInput, LogViewerOptions } from 'lognook'
 
-const options: LogViewerOptions = { dir: './logs', filename: 'app.log', port: 0 }
+const options: LogViewerOptions = { dir: './logs', filename: 'app.log', port: 0,
+  disableSafeRendering: true,
+  renderTitle: (input) => {
+    const normalizedInput: LogInput = input
+    return `<b>${normalizedInput.title ?? '日志'}</b>`
+  },
+}
 const viewer = new LogViewer(options)
 const input: LogInput = { title: '对象', color: '#ef4444', message: { id: 123 } }
 const writing: Promise<void> = viewer.log(input)

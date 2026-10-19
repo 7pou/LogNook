@@ -1,9 +1,17 @@
 import { expect, test } from 'vitest'
-import { decodeLogEvent, encodeLogEvent, isLogsSnapshot } from '../src/log-protocol'
+import { decodeLogEvent, encodeLogEvent, isLogEntry, isLogsSnapshot } from '../src/log-protocol'
 
 test('encodes a single escaped SSE frame', () => {
   expect(encodeLogEvent({ type: 'append', cursor: { sessionId: 'session', revision: 1 }, entry: { kind: 'raw', raw: 'first\nsecond' } }))
     .toBe('id: session:1\nevent: append\ndata: {"cursor":{"sessionId":"session","revision":1},"entry":{"kind":"raw","raw":"first\\nsecond"}}\n\n')
+})
+
+test.each([
+  { kind: 'raw', raw: 'raw message' },
+  { kind: 'structured', timestamp: '2026-10-15T02:00:00Z', message: 'message' },
+])('validates optional web-only title HTML for $kind entries', (entry) => {
+  expect(isLogEntry({ ...entry, titleHtml: '<b>custom</b>' })).toBe(true)
+  expect(isLogEntry({ ...entry, titleHtml: 123 })).toBe(false)
 })
 
 test.each(['ready', 'reset', 'resync'])('decodes %s control', (type) => {
@@ -43,4 +51,7 @@ test('validates the complete snapshot and its counts', () => {
   expect(isLogsSnapshot({ ...snapshot, colors: ['red', 'blue'] })).toBe(true)
   expect(isLogsSnapshot({ ...snapshot, colors: 'red' })).toBe(false)
   expect(isLogsSnapshot({ ...snapshot, colors: [123] })).toBe(false)
+  expect(isLogsSnapshot({ ...snapshot, disableSafeRendering: true })).toBe(true)
+  expect(isLogsSnapshot({ ...snapshot, disableSafeRendering: false })).toBe(true)
+  expect(isLogsSnapshot({ ...snapshot, disableSafeRendering: 'true' })).toBe(false)
 })
