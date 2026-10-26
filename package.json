@@ -1,7 +1,7 @@
 {
   "name": "lognook",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A generic local log writer and web viewer for Node.js.",
   "author": "7pou.com@mail.com",
   "license": "MIT",
@@ -29,7 +29,7 @@
     "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
-    "build": "pnpm run build:lib && pnpm run build:web",
+    "build": "pnpm run build:web && pnpm run build:lib",
     "build:lib": "tsdown",
     "build:web": "pnpm --filter @lognook/web build",
     "dev": "tsdown --watch",
@@ -38,18 +38,20 @@
     "test": "pnpm run test:lib && pnpm run test:web",
     "test:lib": "vitest run",
     "test:web": "pnpm --filter @lognook/web test",
+    "test:bundle": "pnpm run build && vitest run --config vitest.bundle.config.ts",
     "typecheck": "pnpm run typecheck:lib && pnpm run typecheck:web",
     "typecheck:lib": "tsc --noEmit",
     "typecheck:web": "pnpm --filter @lognook/web typecheck",
     "test:types": "tsc --ignoreConfig --noEmit --strict --target es2023 --module nodenext --moduleResolution nodenext --types node tests/package-types.mts",
     "release": "bumpp",
-    "prepublishOnly": "pnpm test && pnpm run typecheck && pnpm run build && pnpm run test:types"
+    "prepublishOnly": "pnpm test && pnpm run typecheck && pnpm run test:bundle && pnpm run test:types"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",
     "bumpp": "^11.1.0",
     "tsdown": "^0.22.5",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "webpack": "^5.112.2"
   }
 }

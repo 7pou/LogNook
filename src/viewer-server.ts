@@ -1,11 +1,11 @@
 import { readFile } from 'node:fs/promises'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import { fileURLToPath } from 'node:url'
 import type { ResolvedLogViewerOptions, ServerInfo } from './types'
 import { Logger, LogStoreClosedError } from './logger'
 import { SseConnections } from './sse-connections'
-import { resolveStaticAsset } from './static-assets'
+import { resolveEmbeddedAsset, resolveStaticAsset } from './static-assets'
+import { webAssets } from './web-assets'
 import type { RecordingControls } from './recording-protocol'
 import { renderEntryTitle } from './render-title'
 
@@ -27,7 +27,7 @@ export class HtmlServer {
 
   constructor(
     private readonly options: ResolvedLogViewerOptions,
-    private readonly webRoot = fileURLToPath(new URL('./web/', import.meta.url)),
+    private readonly webRoot?: string,
     private readonly logger = new Logger(options.logPath),
     private readonly recording?: RecordingControls,
   ) {}
@@ -145,7 +145,9 @@ export class HtmlServer {
       }
       return
     }
-    const asset = await resolveStaticAsset(this.webRoot, rawPath)
+    const asset = this.webRoot === undefined
+      ? resolveEmbeddedAsset(webAssets, rawPath)
+      : await resolveStaticAsset(this.webRoot, rawPath)
     if (rawPath !== '/' && !asset) {
       response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
       response.end('页面不存在')
@@ -161,7 +163,7 @@ export class HtmlServer {
       response.end(request.method === 'HEAD' ? undefined : '缺少 Web 构建产物，请先执行 pnpm run build。')
       return
     }
-    const content = await readFile(asset.filePath)
+    const content = 'content' in asset ? asset.content : await readFile(asset.filePath)
     response.writeHead(200, {
       'Content-Type': asset.contentType,
       'Cache-Control': asset.cacheControl,

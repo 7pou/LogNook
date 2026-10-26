@@ -16,6 +16,8 @@ npm install lognook
 
 网页资源随 npm 包提供，使用者无需安装 React、Tailwind CSS 或启动 Vite。项目采用 [MIT 许可证](LICENSE)，已打包依赖的许可见 [第三方许可说明](THIRD_PARTY_NOTICES.md)。
 
+发布库的默认网页资源内嵌于 JavaScript 产物中。直接 ESM 导入或使用 Webpack 的 Node.js 目标打包时，无需额外的资源复制规则或自定义 Webpack 配置；打包后仅部署 JavaScript 产物即可提供日志网页。`dist/web/` 仍保留独立网页构建产物，但默认服务不依赖该目录。
+
 ## 功能
 
 - 支持字符串日志，以及带可选标题的结构化消息。
@@ -207,14 +209,17 @@ pnpm install
 pnpm test
 pnpm run typecheck
 pnpm run build
+pnpm run test:bundle
 pnpm run test:types
 ```
 
 `test:types` 检查构建产物的公开声明，应在 `build` 后运行。当前使用已有的 TypeScript 7 工具链，tsdown 构建时会提示其 API 为实验性。
 
+`test:bundle` 会先执行完整构建，再检查只有单个 JavaScript 文件的 ESM 部署和生产模式 CommonJS Webpack 打包，实际验证网页、JS/CSS 资源与日志 API。Webpack 仅是开发测试依赖，发布包没有新增运行时依赖。该检查也包含在 `prepublishOnly` 中。
+
 ## Web 开发
 
-`web/` 使用 React / Tailwind CSS / Vite。`pnpm run build` 构建 Node 库和网页资源；生产使用只需调用 `viewer.server()`，不需要额外启动 Vite。
+`web/` 使用 React / Tailwind CSS / Vite。`pnpm run build` 先构建网页，再将 HTML、JS 和 CSS 内嵌到 Node 库；生产使用只需调用 `viewer.server()`，不需要额外启动 Vite。首次运行库监听或 `dev:server` 前，先执行一次完整构建。
 
 前端开发使用两个终端：
 
@@ -230,6 +235,6 @@ $env:LOG_VIEWER_API_URL = 'http://127.0.0.1:9900'
 pnpm run dev:web
 ```
 
-该变量只用于开发配置，不改变生产监听地址。代理保留浏览器的 Host/Origin，不以开放 CORS 绕过清空保护。`pnpm run dev` 保留库的监听构建；单独 `build:lib` 和库监听不会清理已有 `dist/web/`。
+该变量只用于开发配置，不改变生产监听地址。代理保留浏览器的 Host/Origin，不以开放 CORS 绕过清空保护。`pnpm run dev` 保留库的监听构建；单独 `build:lib` 和库监听不会清理已有 `dist/web/`，但需要该目录下已有网页构建产物。网页修改后运行 `build:web`，再重建库以刷新内嵌资源；使用 `dev:web` 时仍由 Vite 提供实时前端资源。
 
 `pnpm test` 和 `pnpm run typecheck` 分别覆盖 Node 和 Web。可用 `test:lib`、`test:web`、`typecheck:lib`、`typecheck:web` 单独验证；`test:types` 仍在完整构建后检查公开声明。Node 包无新增运行时依赖，React 随静态资源打包；发布包包含 `dist/`、README、项目许可证和第三方许可说明。

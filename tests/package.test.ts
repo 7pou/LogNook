@@ -43,10 +43,10 @@ test('declares stable ESM and type entry points', () => {
 
 test('builds and validates the library and web without Node runtime dependencies', () => {
   const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
-  expect(manifest.scripts.build).toBe('pnpm run build:lib && pnpm run build:web')
+  expect(manifest.scripts.build).toBe('pnpm run build:web && pnpm run build:lib')
   expect(manifest.scripts.test).toBe('pnpm run test:lib && pnpm run test:web')
   expect(manifest.scripts.typecheck).toBe('pnpm run typecheck:lib && pnpm run typecheck:web')
-  expect(manifest.scripts.prepublishOnly).toBe('pnpm test && pnpm run typecheck && pnpm run build && pnpm run test:types')
+  expect(manifest.scripts.prepublishOnly).toBe('pnpm test && pnpm run typecheck && pnpm run test:bundle && pnpm run test:types')
   expect(manifest.dependencies ?? {}).toEqual({})
 })
 
